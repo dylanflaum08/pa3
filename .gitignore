@@ -1,0 +1,19 @@
+# IntelliJ / IDE files
+.idea/
+*.iml
+buildOutputCleanup.lock
+filehashes.lock
+
+# Gradle build outputs
+.gradle/
+build/
+out/
+
+# Compiled classes
+*.class
+
+# Downloaded images & other runtime data
+downloads/
+
+# macOS files
+.DS_Store
