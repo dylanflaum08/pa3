@@ -1,9 +1,18 @@
 // src/main/java/client/Client.java
 package client;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Scanner;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -55,19 +64,47 @@ public class Client {
             out.println(seqLine);
 
             int filesReceived = 0;
-            while (filesReceived < seq.size()) {
+            boolean receivedEnd = false;
+            
+            while (!receivedEnd || filesReceived < seq.size()) {
                 String header = readLine(in);
                 if (header == null) throw new IOException("Connection closed");
+                
+                if (header.equals("END")) {
+                    receivedEnd = true;
+                    continue;
+                }
+                
+                if (header.equals("STATS_START")) {
+                    String statsLine = readLine(in);
+                    System.out.println("\nServer Statistics:");
+                    System.out.println("------------------");
+                    System.out.println(statsLine);
+                    String endStats = readLine(in); 
+                    if (!endStats.equals("STATS_END")) {
+                        System.out.println("Warning: Expected STATS_END, got: " + endStats);
+                    }
+                    receivedEnd = true;
+                    continue;
+                }
+                
                 if (!header.startsWith("FOUND")) {
                     System.out.println("Server: " + header);
                     continue;
                 }
-                // header: FOUND <size> <name>
+
+                if (header == null) throw new IOException("Connection closed");
+
+                if (!header.startsWith("FOUND")) {
+                    System.out.println("Server: " + header);
+                    continue;
+                }
+
                 String[] parts = header.split(" ");
                 long size = Long.parseLong(parts[1]);
                 String name = parts[2];
 
-                // receive raw bytes
+
                 try (FileOutputStream fos = new FileOutputStream(DOWNLOAD_DIR + name)) {
                     byte[] buf = new byte[4096];
                     long remaining = size;
@@ -79,8 +116,10 @@ public class Client {
                         remaining -= r;
                     }
                 }
-                System.out.println("Downloaded " + name);
+
                 filesReceived++;
+                System.out.printf("Downloaded %s (%d bytes) - Progress: %d/%d files%n", 
+                    name, size, filesReceived, seq.size());
             }
 
             long end = System.nanoTime();
